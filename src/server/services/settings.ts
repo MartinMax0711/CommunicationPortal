@@ -1,0 +1,179 @@
+// Settings: the signed-in user's own profile, password, email preferences, and devices.
+// Everything here acts on `ctx.actor` only — no ids come from the client.
+import { z } from "zod";
+import { LIMITS } from "@/lib/constants";
+import { checkbox, nameSchema, passwordSchema } from "@/lib/validation";
+import { parseInput } from "../action";
+import type { Actor } from "../actor";
+import { hashPassword, verifyPassword } from "../auth/password";
+import type { ServiceContext } from "../context";
+import type { Db } from "../db";
+import { ConflictError, UnauthorizedError, ValidationError } from "../errors";
+import { isStaff } from "../permissions";
+import { enforceRateLimit } from "../rate-limit";
+
+const PASSWORD_CHANGE_LIMIT = 10;
+const PASSWORD_CHANGE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+/** Session to keep signed in (the device making the request). */
+export interface KeepSessionMeta {
+  keepSessionTokenHash: string | null;
+}
+
+export interface NotificationPrefs {
+  emailOnQuestion: boolean;
+  emailOnSubmission: boolean;
+  emailOnReply: boolean;
+  emailOnReview: boolean;
+  emailOnAssigned: boolean;
+  emailOnSignup: boolean;
+}
+
+const prefsSelect = {
+  emailOnQuestion: true,
+  emailOnSubmission: true,
+  emailOnReply: true,
+  emailOnReview: true,
+  emailOnAssigned: true,
+  emailOnSignup: true,
+} as const;
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+}
+
+function assertActive(actor: Actor) {
+  if (actor.status !== "ACTIVE") throw new UnauthorizedError();
+}
+
+// ── Reads ─────────────────────────────────────────────────────────────────────
+
+export interface SettingsData {
+  prefs: NotificationPrefs;
+  /** Signed-in sessions (not expired) other than the current device. */
+  otherSessionCount: number;
+}
+
+/** Loader for the Settings page: the actor's own preferences and how many other devices are signed in. */
+export async function getSettings(
+  db: Db,
+  actor: Pick<Actor, "id">,
+  options: { currentSessionTokenHash: string | null; now: Date },
+): Promise<SettingsData | null> {
+  const [prefs, otherSessionCount] = await Promise.all([
+    db.user.findUnique({ where: { id: actor.id }, select: prefsSelect }),
+    db.session.count({ where: { ...otherSessionsWhere(actor.id, options.currentSessionTokenHash), expiresAt: { gt: options.now } } }),
+  ]);
+  if (!prefs) return null;
+  return { prefs, otherSessionCount };
+}
+
+function otherSessionsWhere(userId: string, keepTokenHash: string | null) {
+  return keepTokenHash ? { userId, tokenHash: { not: keepTokenHash } } : { userId };
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+const profileInput = z.object({ name: nameSchema });
+
+/** Change your display name. Email and position are managed by the admin. */
+export async function updateProfile(ctx: ServiceContext, raw: unknown): Promise<void> {
+  const { name } = parseInput(profileInput, asRecord(raw));
+  assertActive(ctx.actor);
+  const { count } = await ctx.db.user.updateMany({ where: { id: ctx.actor.id }, data: { name } });
+  if (count === 0) throw new UnauthorizedError();
+}
+
+// ── Password ──────────────────────────────────────────────────────────────────
+
+const passwordInput = z.object({
+  currentPassword: z
+    .string({ error: "Enter your current password." })
+    .min(1, "Enter your current password.")
+    .max(LIMITS.passwordMax, "That's not your current password."),
+  newPassword: passwordSchema,
+  confirmPassword: z.string({ error: "Type your new password again." }).min(1, "Type your new password again."),
+});
+
+/**
+ * Change your password (you must know the current one). Signs out every other device and
+ * invalidates unused password-reset links. The session `keepSessionTokenHash` stays signed in.
+ */
+export async function changePassword(ctx: ServiceContext, raw: unknown, meta: KeepSessionMeta): Promise<void> {
+  const data = parseInput(passwordInput, asRecord(raw));
+  assertActive(ctx.actor);
+  if (data.newPassword !== data.confirmPassword) {
+    throw new ValidationError("The new passwords don't match.", { confirmPassword: "The new passwords don't match." });
+  }
+
+  await enforceRateLimit(ctx.db, `pwchange:${ctx.actor.id}`, PASSWORD_CHANGE_LIMIT, PASSWORD_CHANGE_WINDOW_MS, ctx.now);
+
+  const user = await ctx.db.user.findUnique({ where: { id: ctx.actor.id }, select: { passwordHash: true } });
+  if (!user) throw new UnauthorizedError();
+  if (!(await verifyPassword(data.currentPassword, user.passwordHash))) {
+    throw new ValidationError("That's not your current password.", { currentPassword: "That's not your current password." });
+  }
+  if (data.newPassword.normalize("NFKC") === data.currentPassword.normalize("NFKC")) {
+    const msg = "Choose a new password that's different from your current one.";
+    throw new ValidationError(msg, { newPassword: msg });
+  }
+
+  const newHash = await hashPassword(data.newPassword);
+  await ctx.db.$transaction(async (tx) => {
+    // Conditional write: if the password changed since we verified it, don't overwrite.
+    const { count } = await tx.user.updateMany({
+      where: { id: ctx.actor.id, passwordHash: user.passwordHash },
+      data: { passwordHash: newHash },
+    });
+    if (count === 0) throw new ConflictError("Your password was just changed somewhere else. Reload the page and try again.");
+    await tx.session.deleteMany({ where: otherSessionsWhere(ctx.actor.id, meta.keepSessionTokenHash) });
+    await tx.passwordResetToken.updateMany({ where: { userId: ctx.actor.id, usedAt: null }, data: { usedAt: ctx.now } });
+  });
+  ctx.notifier.notify({ type: "password.changed", userId: ctx.actor.id });
+}
+
+// ── Email notifications ───────────────────────────────────────────────────────
+
+const prefsInput = z.object({
+  emailOnReply: checkbox,
+  emailOnReview: checkbox,
+  emailOnAssigned: checkbox,
+  emailOnQuestion: checkbox,
+  emailOnSubmission: checkbox,
+  emailOnSignup: checkbox,
+});
+
+/** Which preferences this person may change (others are ignored even if submitted). */
+export function editablePrefKeys(actor: Pick<Actor, "id" | "role" | "subteam" | "isAdmin">): (keyof NotificationPrefs)[] {
+  const keys: (keyof NotificationPrefs)[] = ["emailOnReply", "emailOnReview", "emailOnAssigned"];
+  if (isStaff(actor)) keys.push("emailOnQuestion", "emailOnSubmission");
+  if (actor.isAdmin) keys.push("emailOnSignup");
+  return keys;
+}
+
+/**
+ * Save email preferences from the settings form (unchecked boxes arrive missing = off).
+ * Staff-only (question/submission) and admin-only (signup) switches are only applied for staff/admins.
+ */
+export async function updateNotificationPrefs(ctx: ServiceContext, raw: unknown): Promise<void> {
+  const parsed = parseInput(prefsInput, asRecord(raw));
+  assertActive(ctx.actor);
+  const data: Partial<NotificationPrefs> = {};
+  for (const key of editablePrefKeys(ctx.actor)) data[key] = parsed[key];
+  const { count } = await ctx.db.user.updateMany({ where: { id: ctx.actor.id }, data });
+  if (count === 0) throw new UnauthorizedError();
+}
+
+// ── Devices ───────────────────────────────────────────────────────────────────
+
+/** Sign out everywhere except the current device. `count` = active sessions that were ended. */
+export async function signOutOtherDevices(ctx: ServiceContext, meta: KeepSessionMeta): Promise<{ count: number }> {
+  assertActive(ctx.actor);
+  const others = otherSessionsWhere(ctx.actor.id, meta.keepSessionTokenHash);
+  const [, live] = await ctx.db.$transaction([
+    // Clean up expired sessions without counting them as "devices".
+    ctx.db.session.deleteMany({ where: { ...others, expiresAt: { lte: ctx.now } } }),
+    ctx.db.session.deleteMany({ where: others }),
+  ]);
+  return { count: live.count };
+}

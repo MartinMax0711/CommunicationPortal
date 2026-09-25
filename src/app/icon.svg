@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Huskyteers husky">
+  <!-- Approximation of the team mark. Replace this file with the original artwork any time. -->
+  <g fill="#4CA256" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round">
+    <path d="M34 52 L96 45 L117 62 L153 80 L158 91 L146 98 L119 101 L105 111 L117 158 L6 158 L22 111 Z"/>
+    <path d="M47 42 L52 17 Q69 5 87 15 L92 39 Z"/>
+    <path d="M12 47 Q60 29 110 39 Q115 44 106 48 Q60 41 16 54 Z"/>
+    <path d="M50 22 C32 6 8 12 3 32 C12 22 30 21 46 31 Z"/>
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round">
+    <path d="M34 52 L61 79 L96 45"/>
+    <path d="M61 79 L117 62 L119 101"/>
+    <path d="M117 62 L146 98"/>
+    <path d="M61 79 L87 101 L119 101"/>
+    <path d="M87 101 L105 111"/>
+    <path d="M61 79 L22 111"/>
+    <path d="M61 79 L52 120 L22 111"/>
+    <path d="M52 120 L87 101"/>
+    <path d="M52 120 L82 134 L105 111"/>
+    <path d="M82 134 L117 158"/>
+    <path d="M82 134 L72 158"/>
+    <path d="M52 120 L38 158"/>
+  </g>
+</svg>

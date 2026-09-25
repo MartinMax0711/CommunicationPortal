@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/*
+ * Huskyteers brand tokens. Change colors here and the whole app follows.
+ * Brand green #4CA256 (logo, accents, progress) · Brand gray #6D6E73 · Brand mist #DCEADB
+ * Text on green uses brand-600+ so it stays readable (WCAG AA).
+ */
+@theme {
+  --color-brand-50: #f1f8f1;
+  --color-brand-100: #dceadb;
+  --color-brand-200: #bfddc2;
+  --color-brand-300: #95c89c;
+  --color-brand-400: #6db577;
+  --color-brand-500: #4ca256;
+  --color-brand-600: #3a8543; /* white text on it: 4.55:1 (AA) — use behind text instead of 500 */
+  --color-brand-700: #316f39;
+  --color-brand-800: #295a2f;
+  --color-brand-900: #1f4424;
+
+  --color-ink-50: #f7f8f7;
+  --color-ink-100: #eef0ee;
+  --color-ink-200: #dfe3df;
+  --color-ink-300: #c5cac6;
+  --color-ink-400: #868b8c; /* icons/placeholders only (3:1+); use ink-500 for text */
+  --color-ink-500: #6d6e73;
+  --color-ink-600: #55575c;
+  --color-ink-700: #3f4146;
+  --color-ink-800: #2a2c30;
+  --color-ink-900: #18191c;
+
+  --color-canvas: #f5f8f4;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-oswald), "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink-900);
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+/* Native date inputs pick up the brand color. */
+input[type="checkbox"],
+input[type="radio"],
+input[type="date"] {
+  accent-color: var(--color-brand-500);
+}
+
+/* iOS: avoid zoom-on-focus by keeping inputs at 16px on small screens. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

@@ -1,0 +1,233 @@
+// Huskyteers Portal — FTC 19516 team communication app.
+// Postgres everywhere (local: embedded-postgres via `npm run db:start`; prod: Neon/Supabase/etc).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Position on the team. Leaders/mentors/teachers need admin approval.
+enum Role {
+  MEMBER
+  SOFTWARE_LEADER
+  BUILD_LEADER
+  BUSINESS_LEADER
+  CAPTAIN
+  MENTOR
+  TEACHER
+}
+
+enum Subteam {
+  SOFTWARE
+  BUILD
+  BUSINESS
+}
+
+enum AccountStatus {
+  PENDING // waiting for admin approval (leaders, mentors, teachers)
+  ACTIVE
+  REJECTED
+  DISABLED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+/// Lifecycle of one member's copy of a task (the checklist item).
+/// TODO -> SUBMITTED (member checks it) -> APPROVED (leader verifies)  = officially done
+///                                      -> REJECTED (leader sends back with a note) -> SUBMITTED ...
+/// SUBMITTED -> TODO when the member withdraws (unchecks) before review.
+enum AssignmentStatus {
+  TODO
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum QuestionStatus {
+  OPEN // waiting for a staff reply
+  ANSWERED // staff replied, waiting on the asker
+  RESOLVED // asker (or staff) closed it
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+  SKIPPED // no transport configured (dev) — logged only
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique // always stored lower-cased
+  name         String
+  passwordHash String
+  role         Role
+  /// Required for MEMBER and *_LEADER roles (leaders' subteam matches their role). Null for CAPTAIN/MENTOR/TEACHER.
+  subteam      Subteam?
+  status       AccountStatus @default(PENDING)
+  /// Site owner(s). Approves leaders/mentors/teachers and manages accounts.
+  isAdmin      Boolean       @default(false)
+
+  // Email notification preferences (each user can switch these off in Settings).
+  emailOnQuestion   Boolean @default(true) // staff: a question was asked/followed up in your scope
+  emailOnSubmission Boolean @default(true) // staff: someone submitted a task you assigned
+  emailOnReply      Boolean @default(true) // everyone: someone replied to your question
+  emailOnReview     Boolean @default(true) // everyone: your submission was approved / sent back
+  emailOnAssigned   Boolean @default(false) // everyone: you were assigned a new task
+  emailOnSignup     Boolean @default(true) // admins: someone registered and needs approval
+
+  approvedById String?
+  approvedBy   User?     @relation("UserApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+  approved     User[]    @relation("UserApprovals")
+  approvedAt   DateTime?
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  tasksCreated        Task[]               @relation("TaskCreator")
+  assignments         TaskAssignment[]     @relation("AssignmentAssignee")
+  reviews             TaskAssignment[]     @relation("AssignmentReviewer")
+  questionsAsked      Question[]           @relation("QuestionAsker")
+  questionsReceived   Question[]           @relation("QuestionRecipient")
+  questionReplies     QuestionReply[]
+
+  @@index([status, role])
+  @@index([subteam, status])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  /// sha256 of the random cookie token — the raw token never touches the DB.
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  userAgent  String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @default("")
+  /// Subteam the task belongs to. Null = whole-team task (captain/mentor/teacher/admin only).
+  subteam     Subteam?
+  /// Calendar day (team timezone) the task should be done by. Stored as a DATE.
+  dueDate     DateTime @db.Date
+  priority    Priority @default(NORMAL)
+  createdById String
+  createdBy   User     @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments TaskAssignment[]
+  questions   Question[]
+
+  @@index([dueDate])
+  @@index([subteam, dueDate])
+  @@index([createdById])
+}
+
+model TaskAssignment {
+  id             String           @id @default(cuid())
+  taskId         String
+  task           Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User             @relation("AssignmentAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  status         AssignmentStatus @default(TODO)
+  submittedAt    DateTime?
+  submissionNote String?
+  reviewedById   String?
+  reviewedBy     User?            @relation("AssignmentReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+  reviewNote     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([taskId, userId])
+  @@index([userId, status])
+  @@index([status, submittedAt])
+}
+
+model Question {
+  id             String         @id @default(cuid())
+  title          String
+  body           String
+  askerId        String
+  asker          User           @relation("QuestionAsker", fields: [askerId], references: [id], onDelete: Cascade)
+  /// Specific leader/mentor/teacher the question is addressed to. Null = the leaders of `subteam` (or captains if subteam is null).
+  recipientId    String?
+  recipient      User?          @relation("QuestionRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  subteam        Subteam?
+  /// Optional link to the task the question is about.
+  taskId         String?
+  task           Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  status         QuestionStatus @default(OPEN)
+  lastActivityAt DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  replies QuestionReply[]
+
+  @@index([askerId, lastActivityAt])
+  @@index([recipientId, status])
+  @@index([subteam, status])
+  @@index([status, lastActivityAt])
+}
+
+model QuestionReply {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([questionId, createdAt])
+}
+
+/// Every outgoing email attempt, so admins can debug "I never got the email".
+model EmailLog {
+  id        String      @id @default(cuid())
+  to        String
+  subject   String
+  kind      String // notification event type, e.g. "task.submitted"
+  status    EmailStatus
+  error     String?
+  createdAt DateTime    @default(now())
+
+  @@index([createdAt])
+}
+
+/// Fixed-window rate limiter shared across server instances (login, register, password reset).
+model RateLimit {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}
