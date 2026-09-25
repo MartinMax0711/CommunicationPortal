@@ -12,6 +12,7 @@ import { issuePasswordReset } from "../auth/password-reset";
 import type { ServiceContext } from "../context";
 import type { Db } from "../db";
 import { type EmailTransport, sendEmail } from "../email/transport";
+import { type DiscordOptions, type DiscordStatus, postToDiscord, testPayload } from "../notifications/discord";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../errors";
 import { canAdminister } from "../permissions";
 import { enforceRateLimit } from "../rate-limit";
@@ -320,4 +321,11 @@ export async function sendTestEmail(
 </table></td></tr></table></body></html>`;
 
   return sendEmail(ctx.db, { to: ctx.actor.email, subject, text, html, kind: "test" }, options.transport);
+}
+
+/** Posts a test message to the leaders' Discord channel (Admin → Email log). */
+export async function sendDiscordTest(ctx: ServiceContext, options: DiscordOptions = {}): Promise<DiscordStatus> {
+  assertAdmin(ctx);
+  await enforceRateLimit(ctx.db, `admin-test-discord:${ctx.actor.id}`, 5, 10 * 60 * 1000, ctx.now);
+  return (await postToDiscord(ctx.db, testPayload(ctx.actor.name, ctx.config.appUrl), "test", options)).status;
 }

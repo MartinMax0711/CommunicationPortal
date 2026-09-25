@@ -1,5 +1,6 @@
 import { Mail } from "lucide-react";
 import type { Metadata } from "next";
+import { DiscordCard, type DiscordSetup } from "@/components/admin/discord-card";
 import { EmailConfigCard } from "@/components/admin/email-config-card";
 import { EmailLogList } from "@/components/admin/email-log-list";
 import { Card } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Pagination } from "@/components/ui/pagination";
 import type { EmailStatus } from "@/generated/prisma/enums";
 import { requireAdminUser } from "@/server/auth/session";
 import { env } from "@/server/env";
+import { discordWebhookUrl } from "@/server/notifications/discord";
 import { getEmailConfigStatus, listEmailLogs, parseEmailLogFilters } from "@/server/queries/admin";
 
 export const metadata: Metadata = { title: "Email log" };
@@ -34,16 +36,18 @@ export default async function EmailLogPage({ searchParams }: PageProps<"/admin/e
   const filters = parseEmailLogFilters(await searchParams);
   const config = getEmailConfigStatus(actor);
   const result = await listEmailLogs(actor, filters);
+  const discordSetup: DiscordSetup = discordWebhookUrl() ? "connected" : process.env.DISCORD_WEBHOOK_URL?.trim() ? "invalid" : "none";
 
   return (
     <>
       <PageHeader
         eyebrow="Admin"
         title="Email log"
-        description="Every email the portal tried to send — handy when someone says “I never got it”."
+        description="Every email (and Discord post) the portal tried to send — handy when someone says “I never got it”."
       />
       <div className="space-y-6">
         <EmailConfigCard config={config} adminEmail={actor.email} />
+        <DiscordCard setup={discordSetup} />
 
         <section aria-labelledby="log-heading" className="space-y-3">
           <h2 id="log-heading" className="text-base font-semibold text-ink-900">

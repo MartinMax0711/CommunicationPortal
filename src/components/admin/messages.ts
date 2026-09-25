@@ -8,6 +8,12 @@ export const TEST_EMAIL_MESSAGES = {
   SKIPPED: "Email isn't configured yet — messages are only logged.",
 } as const;
 
+export const DISCORD_TEST_MESSAGES = {
+  SENT: "Sent! Check the Discord channel.",
+  FAILED: "Discord didn't accept it — check the log below for the error (is the webhook deleted?).",
+  SKIPPED: "Discord isn't set up yet — add DISCORD_WEBHOOK_URL in Vercel, then redeploy.",
+} as const;
+
 export const APPROVED_MESSAGE = "Approved. They can sign in now and will get an email.";
 export const REJECTED_MESSAGE = "Sign-up rejected.";
 

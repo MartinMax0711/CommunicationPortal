@@ -8,6 +8,7 @@ import { isSubteamLeaderRole } from "@/lib/constants";
 import { todayInTimezone } from "@/lib/dates";
 import { requireActiveUser } from "@/server/auth/session";
 import { env } from "@/server/env";
+import { discordWebhookUrl } from "@/server/notifications/discord";
 import { getAskTaskOptions, getRecipientOptions } from "@/server/queries/questions";
 import { askQuestionAction } from "../actions";
 
@@ -47,6 +48,7 @@ export default async function NewQuestionPage({ searchParams }: PageProps<"/ques
             tasks={tasks}
             defaultTaskId={defaultTaskId}
             today={today}
+            discordEnabled={discordWebhookUrl() !== null}
           />
         </CardBody>
       </Card>

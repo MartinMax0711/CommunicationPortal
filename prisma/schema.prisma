@@ -175,22 +175,24 @@ model TaskAssignment {
 }
 
 model Question {
-  id             String         @id @default(cuid())
-  title          String
-  body           String
-  askerId        String
-  asker          User           @relation("QuestionAsker", fields: [askerId], references: [id], onDelete: Cascade)
+  id                String         @id @default(cuid())
+  title             String
+  body              String
+  askerId           String
+  asker             User           @relation("QuestionAsker", fields: [askerId], references: [id], onDelete: Cascade)
   /// Specific leader/mentor/teacher the question is addressed to. Null = the leaders of `subteam` (or captains if subteam is null).
-  recipientId    String?
-  recipient      User?          @relation("QuestionRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
-  subteam        Subteam?
+  recipientId       String?
+  recipient         User?          @relation("QuestionRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  subteam           Subteam?
   /// Optional link to the task the question is about.
-  taskId         String?
-  task           Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  status         QuestionStatus @default(OPEN)
-  lastActivityAt DateTime       @default(now())
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  taskId            String?
+  task              Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  status            QuestionStatus @default(OPEN)
+  /// Ids of the messages this question was posted as in the leaders' Discord channel (so deleting it can remove them).
+  discordMessageIds String[]       @default([])
+  lastActivityAt    DateTime       @default(now())
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   replies QuestionReply[]
 
@@ -201,13 +203,15 @@ model Question {
 }
 
 model QuestionReply {
-  id         String   @id @default(cuid())
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  body       String
-  createdAt  DateTime @default(now())
+  id                String   @id @default(cuid())
+  questionId        String
+  question          Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorId          String
+  author            User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body              String
+  /// Ids of the messages this reply was posted as in the leaders' Discord channel.
+  discordMessageIds String[] @default([])
+  createdAt         DateTime @default(now())
 
   @@index([questionId, createdAt])
 }

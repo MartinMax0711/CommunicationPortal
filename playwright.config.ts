@@ -37,6 +37,7 @@ export default defineConfig({
       TEAM_JOIN_CODE: E2E_JOIN_CODE,
       TEAM_TIMEZONE: "America/Los_Angeles",
       SMTP_HOST: "",
+      DISCORD_WEBHOOK_URL: "",
       RESEND_API_KEY: "",
     },
   },

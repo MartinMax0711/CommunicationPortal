@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { APPROVED_MESSAGE, REJECTED_MESSAGE, type ResetLinkState, TEST_EMAIL_MESSAGES } from "@/components/admin/messages";
+import {
+  APPROVED_MESSAGE,
+  DISCORD_TEST_MESSAGES,
+  REJECTED_MESSAGE,
+  type ResetLinkState,
+  TEST_EMAIL_MESSAGES,
+} from "@/components/admin/messages";
 import type { ActionState } from "@/lib/action-state";
 import { formDataToObject, runAction } from "@/server/action";
 import { getServiceContext } from "@/server/context";
@@ -13,6 +19,7 @@ import {
   deleteUser,
   rejectUser,
   revokeSessions,
+  sendDiscordTest,
   sendPasswordResetLink,
   sendTestEmail,
   updateUser,
@@ -99,6 +106,19 @@ export async function sendTestEmailAction(_prev: ActionState, formData: FormData
       revalidatePath("/", "layout");
       if (status === "FAILED") throw new ConflictError(TEST_EMAIL_MESSAGES.FAILED);
       return TEST_EMAIL_MESSAGES[status];
+    },
+    { formData },
+  );
+}
+
+export async function sendDiscordTestAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return runAction(
+    async () => {
+      const ctx = await getServiceContext();
+      const status = await sendDiscordTest(ctx);
+      revalidatePath("/", "layout");
+      if (status === "FAILED") throw new ConflictError(DISCORD_TEST_MESSAGES.FAILED);
+      return DISCORD_TEST_MESSAGES[status];
     },
     { formData },
   );

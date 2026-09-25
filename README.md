@@ -36,9 +36,10 @@ The app needs a server and a database, so **GitHub Pages can't run it** (it only
 
 4. **Email (Gmail).** Turn on 2-Step Verification for the Gmail account, then create an **App Password** (Google Account → Security → App passwords). Add `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<the gmail address>`, `SMTP_PASS=<the 16-character app password>`, `EMAIL_FROM="Huskyteers Portal <the gmail address>"`. Without these the app still works, but emails are only recorded in *Admin → Email log*.
    *(Alternative: [Resend](https://resend.com). Set `RESEND_API_KEY` and an `EMAIL_FROM` on a domain you verified there. Its free tier allows 100 emails/day, which a busy 35-person team can exceed; Gmail allows ~500/day.)*
-5. **Deploy.** *Deployments → ⋯ → Redeploy* so the database and settings take effect.
-6. **Become the admin right away:** open the site → *Create an account* with the email from `ADMIN_EMAILS`. You land in the app with the **Admin** section in the menu. Do this before sharing the link.
-7. In **Admin → Email log**, press **Send me a test email**. Then share the link and the team code. Members can start using it immediately; approve leaders, mentors and teachers in **Admin → Approvals**.
+5. **Discord (optional).** To have new questions and replies posted to your leaders' Discord channel: make the channel **leaders-only** (questions are posted in full), then *Edit Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL*, and add it in Vercel as `DISCORD_WEBHOOK_URL`. Answers still happen in the portal. Check it with *Admin → Email log → Send a test message to Discord*.
+6. **Deploy.** *Deployments → ⋯ → Redeploy* so the database and settings take effect.
+7. **Become the admin right away:** open the site → *Create an account* with the email from `ADMIN_EMAILS`. You land in the app with the **Admin** section in the menu. Do this before sharing the link.
+8. In **Admin → Email log**, press **Send me a test email**. Then share the link and the team code. Members can start using it immediately; approve leaders, mentors and teachers in **Admin → Approvals**.
 
 > **More admins:** open *Admin → People*, pick the person, tick **Team admin**. (`ADMIN_EMAILS` only creates the *first* admin.)
 > **Locked out of admin?** From a computer with this repo and your production database URL as `DATABASE_URL` in `.env`, run

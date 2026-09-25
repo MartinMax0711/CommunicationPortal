@@ -165,6 +165,8 @@ Production sends run in `after()` so user actions never wait on SMTP.
 | `password.reset` | auth/admin | that user (always) |
 | `password.changed` | auth/settings | that user (always, security notice) |
 
+`question.asked` / `question.replied` are also posted, in full, to a leaders-only Discord channel when `DISCORD_WEBHOOK_URL` is set (`src/server/notifications/discord.ts`; one-way, logged in EmailLog as `to = "Discord"`, `allowed_mentions` empty so user text can't ping anyone).
+
 ## Tests
 
 - `tests/<feature>.test.ts`, real Postgres. Pattern:

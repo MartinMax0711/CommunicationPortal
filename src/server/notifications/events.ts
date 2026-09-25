@@ -6,6 +6,8 @@ export type NotificationEvent =
   | { type: "question.asked"; questionId: string }
   /** Someone posted in a question thread. If staff replied -> the asker; if the asker followed up -> staff on the question. */
   | { type: "question.replied"; questionId: string; replyId: string }
+  /** A question was deleted. Its copies in the leaders' Discord channel are removed (no email). */
+  | { type: "question.deleted"; questionId: string; discordMessageIds: string[] }
   /** A member checked off a checklist item. Recipient: the task's creator, or (if they can't review it) the subteam's leaders → captains → admins. */
   | { type: "task.submitted"; assignmentId: string }
   /** A leader approved or sent back a submission. Recipient: the assignee. */

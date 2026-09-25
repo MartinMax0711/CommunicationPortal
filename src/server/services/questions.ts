@@ -269,17 +269,24 @@ export async function deleteQuestion(ctx: ServiceContext, raw: unknown): Promise
   assertActive(actor);
 
   const q = await loadVisibleQuestion(ctx, data.questionId);
+  if (!actor.isAdmin && q.askerId !== actor.id) throw new ForbiddenError("Only the person who asked can delete this question.");
+
+  // Remember where it was posted in the leaders' Discord channel, so those copies can be removed too.
+  const posted = await ctx.db.question.findUnique({
+    where: { id: q.id },
+    select: { discordMessageIds: true, replies: { select: { discordMessageIds: true } } },
+  });
+  const discordMessageIds = [...(posted?.discordMessageIds ?? []), ...(posted?.replies.flatMap((r) => r.discordMessageIds) ?? [])];
 
   if (actor.isAdmin) {
     await ctx.db.question.deleteMany({ where: { id: q.id } });
-    return { id: q.id };
+  } else {
+    const hasReplies = "This question already has replies, so it can't be deleted. Mark it as resolved instead.";
+    const deleted = await ctx.db.question.deleteMany({
+      where: { id: q.id, askerId: actor.id, replies: { none: {} } },
+    });
+    if (deleted.count === 0) throw new ConflictError(hasReplies);
   }
-  if (q.askerId !== actor.id) throw new ForbiddenError("Only the person who asked can delete this question.");
-
-  const hasReplies = "This question already has replies, so it can't be deleted. Mark it as resolved instead.";
-  const deleted = await ctx.db.question.deleteMany({
-    where: { id: q.id, askerId: actor.id, replies: { none: {} } },
-  });
-  if (deleted.count === 0) throw new ConflictError(hasReplies);
+  if (discordMessageIds.length) ctx.notifier.notify({ type: "question.deleted", questionId: q.id, discordMessageIds });
   return { id: q.id };
 }

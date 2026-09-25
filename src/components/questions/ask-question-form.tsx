@@ -25,6 +25,8 @@ export interface AskQuestionFormProps {
   tasks: AskTaskOption[];
   defaultTaskId: string | null;
   today: DateOnly;
+  /** Questions to leaders/the captain are also posted to the leaders-only Discord channel. */
+  discordEnabled?: boolean;
 }
 
 function ChoiceCard({
@@ -82,6 +84,7 @@ export function AskQuestionForm({
   tasks,
   defaultTaskId,
   today,
+  discordEnabled = false,
 }: AskQuestionFormProps) {
   const [state, formAction] = useActionState(action, initialActionState);
 
@@ -150,6 +153,13 @@ export function AskQuestionForm({
           />
         </div>
         <FieldError id="to-error">{errors.to}</FieldError>
+        {discordEnabled && (
+          <p className="text-xs text-ink-500">
+            {choice === "person"
+              ? "Questions to one person stay in the portal. They're not posted to the leaders' Discord channel."
+              : "It's also posted in the leaders-only Discord channel so any leader can help."}
+          </p>
+        )}
       </fieldset>
 
       {choice === "person" && (

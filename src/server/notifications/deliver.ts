@@ -8,6 +8,7 @@ import { type DateOnly, dbToDateOnly, todayInTimezone } from "@/lib/dates";
 import type { Db } from "../db";
 import { type EmailTransport, getTransport, sendEmail } from "../email/transport";
 import { env } from "../env";
+import { type DiscordOptions, deliverDiscord } from "./discord";
 import type { NotificationEvent } from "./events";
 import {
   accountApprovedRecipients,
@@ -42,6 +43,8 @@ export interface DeliverOptions {
   teamTimezone?: string;
   /** Clock override for due-date wording (tests). Defaults to the current time. */
   now?: Date;
+  /** Discord webhook overrides (tests). Defaults to DISCORD_WEBHOOK_URL. */
+  discord?: DiscordOptions;
 }
 
 interface DeliverConfig {
@@ -64,20 +67,30 @@ export async function deliverNotification(db: Db, event: NotificationEvent, opti
     today: todayInTimezone(options.teamTimezone ?? env.teamTimezone, options.now ?? new Date()),
   };
 
-  const plan = await planFor(db, event, cfg);
-  if (!plan || plan.recipients.length === 0) return;
-
-  await Promise.all(
-    plan.recipients.map(async (recipient) => {
-      try {
-        const content = plan.render(recipient);
-        await sendEmail(db, { to: recipient.email, ...content, kind: event.type }, transport);
-      } catch (e) {
-        // sendEmail never throws; this guards rendering bugs so one recipient can't block the rest.
-        console.error(`[notify] ${event.type}: could not email user ${recipient.id}`, e);
-      }
-    }),
+  // Question activity also goes to the leaders' Discord channel (if configured), alongside the emails.
+  const discord = deliverDiscord(db, event, { appUrl: cfg.appUrl, ...options.discord }).catch((e) =>
+    console.error(`[notify] ${event.type}: Discord post failed`, e),
   );
+
+  try {
+    const plan = await planFor(db, event, cfg);
+    if (!plan || plan.recipients.length === 0) return;
+
+    await Promise.all(
+      plan.recipients.map(async (recipient) => {
+        try {
+          const content = plan.render(recipient);
+          await sendEmail(db, { to: recipient.email, ...content, kind: event.type }, transport);
+        } catch (e) {
+          // sendEmail never throws; this guards rendering bugs so one recipient can't block the rest.
+          console.error(`[notify] ${event.type}: could not email user ${recipient.id}`, e);
+        }
+      }),
+    );
+  } finally {
+    // Even if loading email recipients fails, finish the Discord post before after() returns.
+    await discord;
+  }
 }
 
 function planFor(db: Db, event: NotificationEvent, cfg: DeliverConfig): Promise<Plan | null> {
@@ -100,6 +113,8 @@ function planFor(db: Db, event: NotificationEvent, cfg: DeliverConfig): Promise<
       return planPasswordReset(db, event, cfg);
     case "password.changed":
       return planPasswordChanged(db, event, cfg);
+    case "question.deleted":
+      return Promise.resolve(null); // Discord-only (deliverDiscord removes the posts)
     default: {
       const unknown: never = event;
       console.warn("[notify] unknown event", unknown);
