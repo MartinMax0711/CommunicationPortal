@@ -21,32 +21,29 @@ Members' accounts work right after sign-up. Leader, captain, mentor, and teacher
 
 ## Put it online (about 20 minutes, free tiers)
 
-You need a GitHub account, a [Vercel](https://vercel.com) account (hosting), a [Neon](https://neon.tech) account (Postgres database), and a Gmail account for sending email.
+The app needs a server and a database, so **GitHub Pages can't run it** (it only shows this README). Use Vercel (hosting) with its built-in Neon Postgres database. Your code is already on GitHub.
 
-1. **Database — Neon.** Create a project. Copy the **pooled** connection string (the host contains `-pooler`) → this is `DATABASE_URL`. Copy the **direct** (non-pooled) connection string → `DIRECT_URL`.
-2. **Email — Gmail.** Turn on 2-Step Verification for the Gmail account, then create an **App Password** (Google Account → Security → App passwords). You'll use: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<the gmail address>`, `SMTP_PASS=<the 16-character app password>`, `EMAIL_FROM="Huskyteers Portal <the gmail address>"`.
-   *(Alternative: [Resend](https://resend.com) — set `RESEND_API_KEY` and an `EMAIL_FROM` on a domain you verified there. Its free tier allows 100 emails/day, which a busy 35-person team can exceed; Gmail allows ~500/day.)*
-3. **Hosting — Vercel.** Push this repo to GitHub, then *Add New → Project → Import* it. Vercel automatically runs the `vercel-build` script from `package.json`, which applies the database migrations and then builds, so you don't need to change any build settings. Add these **Environment Variables** before the first deploy:
+1. **Vercel project.** Sign in at [vercel.com](https://vercel.com) with GitHub → *Add New → Project* → import `CommunicationPortal`. Vercel automatically runs the `vercel-build` script (database migrations, then the build). The first deploy may fail because there is no database yet. That's expected.
+2. **Database.** In the project → **Storage** → *Create Database* → **Neon** (Serverless Postgres) → region **Washington, D.C. (us-east-1)**, the same region as Vercel's servers → connect it to the project for all environments. This sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED` for you, so there's nothing to copy.
+3. **Settings.** In the project → *Settings → Environment Variables*, add:
 
    | Variable | Value |
    |---|---|
-   | `DATABASE_URL` | Neon pooled connection string |
-   | `DIRECT_URL` | Neon direct connection string |
-   | `APP_URL` | your site URL, e.g. `https://huskyteers-portal.vercel.app` (used in email links) |
-   | `ADMIN_EMAILS` | **your** email — the first person to sign up with it (while there is no admin yet) becomes the admin |
-   | `TEAM_JOIN_CODE` | a code you'll tell the team (e.g. `go-huskies`) so strangers can't sign up — set this |
+   | `ADMIN_EMAILS` | **your** email. The first person to sign up with it (while there is no admin yet) becomes the admin |
+   | `TEAM_JOIN_CODE` | a code you'll tell the team (e.g. `go-huskies`) so strangers can't sign up. Set this |
    | `TEAM_TIMEZONE` | `America/Los_Angeles` |
-   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | from step 2 |
+   | `APP_URL` | optional: your site URL, e.g. `https://communication-portal.vercel.app`. Email links use Vercel's production URL if you leave it out |
 
-   Deploy. After you add or change environment variables, redeploy so they take effect.
-4. **Become the admin right away:** open the site → *Create an account* with the email you put in `ADMIN_EMAILS`. You land directly in the app with the **Admin** section in the menu. Do this before sharing the link.
-5. In **Admin → Email log**, press **Send me a test email** to confirm email works.
-6. Share the link and the team code. Members start using it immediately. Approve leaders, mentors, and teachers in **Admin → Approvals** (you also get an email for each one).
+4. **Email (Gmail).** Turn on 2-Step Verification for the Gmail account, then create an **App Password** (Google Account → Security → App passwords). Add `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<the gmail address>`, `SMTP_PASS=<the 16-character app password>`, `EMAIL_FROM="Huskyteers Portal <the gmail address>"`. Without these the app still works, but emails are only recorded in *Admin → Email log*.
+   *(Alternative: [Resend](https://resend.com). Set `RESEND_API_KEY` and an `EMAIL_FROM` on a domain you verified there. Its free tier allows 100 emails/day, which a busy 35-person team can exceed; Gmail allows ~500/day.)*
+5. **Deploy.** *Deployments → ⋯ → Redeploy* so the database and settings take effect.
+6. **Become the admin right away:** open the site → *Create an account* with the email from `ADMIN_EMAILS`. You land in the app with the **Admin** section in the menu. Do this before sharing the link.
+7. In **Admin → Email log**, press **Send me a test email**. Then share the link and the team code. Members can start using it immediately; approve leaders, mentors and teachers in **Admin → Approvals**.
 
 > **More admins:** open *Admin → People*, pick the person, tick **Team admin**. (`ADMIN_EMAILS` only creates the *first* admin.)
-> **Locked out of admin?** From a computer with this repo and your production `DATABASE_URL` in `.env`, run
+> **Locked out of admin?** From a computer with this repo and your production database URL as `DATABASE_URL` in `.env`, run
 > `npm run admin -- --email you@example.com --name "Your Name"`. To just reset someone's password without changing their role: `npm run admin -- --email them@example.com --reset-only`.
-> **Someone can't get emails / typo'd their email?** *Admin → People → (person)*: fix the email there. **Forgot password?** Same page → *Send password reset*: the page also shows the one-time link (works once, for 1 hour) so you can send it to them yourself even if email isn't set up.
+> **Someone can't get emails / typo'd their email?** *Admin → People → (person)*: fix the email there. **Forgot password?** Same page → *Send password reset*. The page also shows the one-time link (works once, for 1 hour), so you can send it to them yourself even if email isn't set up.
 
 **Logo:** the husky mark lives in `public/brand/husky-mark.svg` (a redrawn version of the team logo). Replace that file with the original artwork to update it everywhere. Colors are defined once at the top of `src/app/globals.css`.
 

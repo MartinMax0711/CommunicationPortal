@@ -1,8 +1,9 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-// The CLI (migrations) prefers DIRECT_URL — a non-pooled connection — when your host provides one
-// (Neon/Supabase). The running app always uses DATABASE_URL (pooled) via src/server/db.ts.
+// The CLI (migrations) prefers a direct, non-pooled connection when the host provides one:
+// DIRECT_URL (set by hand), DATABASE_URL_UNPOOLED (Vercel's Neon integration) or POSTGRES_URL_NON_POOLING.
+// The running app always uses DATABASE_URL (pooled) via src/server/db.ts.
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -12,6 +13,8 @@ export default defineConfig({
   datasource: {
     url:
       process.env["DIRECT_URL"] ||
+      process.env["DATABASE_URL_UNPOOLED"] ||
+      process.env["POSTGRES_URL_NON_POOLING"] ||
       process.env["DATABASE_URL"] ||
       "postgresql://postgres:postgres@localhost:54329/portal",
   },
