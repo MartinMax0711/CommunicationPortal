@@ -498,6 +498,7 @@ const QUESTIONS: QuestionSpec[] = [
 
 /** Delete every app row, children first. */
 async function wipeAppData(tx: Tx): Promise<void> {
+  await tx.resource.deleteMany();
   await tx.emailLog.deleteMany();
   await tx.rateLimit.deleteMany();
   await tx.questionReply.deleteMany();
@@ -639,6 +640,42 @@ export async function seed(db: Db, options: SeedOptions = {}): Promise<SeedResul
         })),
       );
       await tx.questionReply.createMany({ data: replyRows });
+
+      // A few sample resources (public FTC pages + placeholders; real team links are added in the app).
+      await tx.resource.createMany({
+        data: [
+          {
+            title: "Team Docs (demo)",
+            url: "https://docs.example.com/huskyteers-team-docs",
+            description: "All team materials: agenda, dates, notebooks, orders.",
+            type: "DOCUMENT",
+            group: "Team Docs",
+            pinned: true,
+            links: [
+              { label: "Meeting Agenda", url: "https://docs.example.com/huskyteers-team-docs#agenda" },
+              { label: "Important Dates", url: "https://docs.example.com/huskyteers-team-docs#dates" },
+              { label: "Team Tasks", url: "https://docs.example.com/huskyteers-team-docs#tasks" },
+            ],
+            createdById: uid("jordan"),
+          },
+          {
+            title: "Inventory tracker (demo)",
+            url: "https://inventory.example.com/",
+            description: "What parts we have and where they are.",
+            type: "WEBSITE",
+            group: "Project assets",
+            createdById: uid("marcus"),
+          },
+          {
+            title: "FTC Docs",
+            url: "https://ftc-docs.firstinspires.org/",
+            description: "Official FTC programming and robot documentation.",
+            type: "WEBSITE",
+            group: "Learning",
+            createdById: uid("priya"),
+          },
+        ],
+      });
 
       return {
         users: keys.length,

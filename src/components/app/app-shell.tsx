@@ -19,6 +19,7 @@ export function buildNav(actor: Actor, counts: NavCounts): { sections: NavSectio
         { href: "/today", label: "Today", icon: "today" },
         { href: "/my-tasks", label: "My tasks", icon: "myTasks" },
         { href: "/questions", label: "Questions", icon: "questions", count: questionsCount },
+        { href: "/resources", label: "Resources", icon: "resources" },
       ],
     },
   ];

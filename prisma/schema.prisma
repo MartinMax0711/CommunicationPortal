@@ -57,6 +57,17 @@ enum QuestionStatus {
   RESOLVED // asker (or staff) closed it
 }
 
+/// What kind of thing a Resources-page link points to (drives the icon and filter).
+enum ResourceType {
+  DOCUMENT
+  SPREADSHEET
+  WEBSITE
+  CAD
+  CODE
+  VIDEO
+  OTHER
+}
+
 enum EmailStatus {
   SENT
   FAILED
@@ -99,6 +110,7 @@ model User {
   questionsAsked      Question[]           @relation("QuestionAsker")
   questionsReceived   Question[]           @relation("QuestionRecipient")
   questionReplies     QuestionReply[]
+  resourcesCreated    Resource[]           @relation("ResourceCreator")
 
   @@index([status, role])
   @@index([subteam, status])
@@ -234,4 +246,26 @@ model RateLimit {
   key         String   @id
   count       Int
   windowStart DateTime
+}
+
+/// A link on the Resources page (team docs, CAD, inventory tracker, game manual…).
+/// Stored in the database — not in code — because the repo is public and some links are team-only.
+model Resource {
+  id          String       @id @default(cuid())
+  title       String
+  url         String
+  description String       @default("")
+  type        ResourceType @default(OTHER)
+  /// Heading the link is shown under, e.g. "Team Docs" or "Project assets". Empty = "Other".
+  group       String       @default("")
+  /// Pinned resources are shown first.
+  pinned      Boolean      @default(false)
+  /// Extra quick links shown as buttons on the card: [{ "label": "Meeting Agenda", "url": "https://…" }].
+  links       Json         @default("[]")
+  createdById String?
+  createdBy   User?        @relation("ResourceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([pinned, group])
 }

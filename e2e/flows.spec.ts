@@ -353,3 +353,39 @@ test.describe("leaders can't drop themselves from a task", () => {
     expect(assignees.map((a) => a.email)).toEqual([PEOPLE.buildMember, PEOPLE.buildLeader].sort());
   });
 });
+
+test.describe("resources", () => {
+  test("a leader adds a resource with quick links; members see it but can't change it", async ({ page }, info) => {
+    const title = `E2E Team Docs ${uniq(info.project.name)}`;
+    await signIn(page, PEOPLE.buildLeader);
+    await page.goto("/resources");
+    await page.getByRole("link", { name: "Add resource" }).first().click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Link", { exact: true }).fill("https://docs.example.com/team");
+    await page.getByLabel("Section").fill("Team Docs");
+    // A long unbroken string must not make phones scroll sideways.
+    await page.getByLabel("Description").fill(`See https://docs.example.com/${"x".repeat(160)} for details`);
+    await page.getByLabel("Quick links").fill("Meeting Agenda | https://docs.example.com/team?tab=agenda\nnot a link");
+    await page.getByRole("button", { name: "Add resource" }).click();
+    await expect(page.getByText("Line 2:", { exact: false })).toBeVisible();
+    // The form kept what was typed; fix the bad line and save.
+    await expect(page.getByLabel("Title")).toHaveValue(title);
+    await page.getByLabel("Quick links").fill("Meeting Agenda | https://docs.example.com/team?tab=agenda");
+    await page.getByText("Pin to the top").click();
+    await page.getByRole("button", { name: "Add resource" }).click();
+    await expect(page).toHaveURL(/\/resources$/);
+
+    await signIn(page, PEOPLE.softwareMember);
+    await page.goto("/resources");
+    const link = page.getByRole("link", { name: new RegExp(title) });
+    await expect(link).toHaveAttribute("href", "https://docs.example.com/team");
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", /noopener/);
+    await expect(page.getByRole("link", { name: "Meeting Agenda" }).first()).toHaveAttribute("href", "https://docs.example.com/team?tab=agenda");
+    await expect(page.getByRole("link", { name: "Add resource" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: `Edit ${title}` })).toHaveCount(0);
+    await page.goto("/resources/new");
+    await expect(page).toHaveURL(/\/resources$/);
+    await expectNoHorizontalScroll(page);
+  });
+});

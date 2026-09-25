@@ -4,11 +4,12 @@ import {
   AssignmentStatus,
   Priority,
   QuestionStatus,
+  ResourceType,
   Role,
   Subteam,
 } from "@/generated/prisma/enums";
 
-export { AccountStatus, AssignmentStatus, Priority, QuestionStatus, Role, Subteam };
+export { AccountStatus, AssignmentStatus, Priority, QuestionStatus, ResourceType, Role, Subteam };
 
 export const TEAM_NAME = "The Huskyteers";
 export const TEAM_NUMBER = "19516";
@@ -55,6 +56,18 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   NORMAL: "Normal",
   HIGH: "High",
 };
+
+export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
+  DOCUMENT: "Document",
+  SPREADSHEET: "Spreadsheet",
+  WEBSITE: "Website",
+  CAD: "CAD",
+  CODE: "Code",
+  VIDEO: "Video",
+  OTHER: "Other",
+};
+
+export const RESOURCE_TYPES = Object.values(ResourceType) as ResourceType[];
 
 export const ROLES = Object.values(Role) as Role[];
 export const SUBTEAMS = Object.values(Subteam) as Subteam[];
@@ -122,4 +135,10 @@ export const LIMITS = {
   questionBodyMax: 5000,
   replyBodyMax: 5000,
   noteMax: 1000,
+  resourceTitleMax: 120,
+  resourceDescriptionMax: 500,
+  resourceGroupMax: 60,
+  resourceUrlMax: 2000,
+  resourceLinksMax: 20,
+  resourceLinkLabelMax: 60,
 } as const;

@@ -42,6 +42,7 @@ test("member", async ({ page }, info) => {
   await shoot(page, p, "14-member-ask", "/questions/new");
   if (q) await shoot(page, p, "15-member-thread", `/questions/${q.id}`);
   await shoot(page, p, "16-member-settings", "/settings");
+  await shoot(page, p, "16b-member-resources", "/resources");
   const menu = page.getByRole("button", { name: "Open menu" });
   if (await menu.isVisible()) {
     await page.goto("/today");
@@ -79,6 +80,8 @@ test("build leader", async ({ page }, info) => {
   await shoot(page, p, "29-leader-questions-inbox", "/questions");
   if (q) await shoot(page, p, "30-leader-thread", `/questions/${q.id}`);
   await shoot(page, p, "31-leader-settings", "/settings");
+  await shoot(page, p, "32-leader-resources", "/resources");
+  await shoot(page, p, "33-leader-add-resource", "/resources/new");
 });
 
 test("admin", async ({ page }, info) => {

@@ -2,6 +2,7 @@
 
 import {
   BadgeCheck,
+  BookMarked,
   ChartColumn,
   ClipboardList,
   FolderKanban,
@@ -30,6 +31,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   today: ListChecks,
   myTasks: ClipboardList,
   questions: MessageCircleQuestionMark,
+  resources: BookMarked,
   overview: LayoutDashboard,
   tasks: FolderKanban,
   review: BadgeCheck,

@@ -126,3 +126,8 @@ export function canViewMemberProgress(actor: ActorLike, member: { id: string; su
   const led = ledSubteam(actor);
   return led !== null && member.subteam === led;
 }
+
+/** Add, edit, and remove links on the Resources page (everyone ACTIVE can view them). */
+export function canManageResources(actor: ActorLike): boolean {
+  return isStaff(actor);
+}
